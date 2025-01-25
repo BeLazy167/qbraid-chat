@@ -7,6 +7,9 @@ A Visual Studio Code extension that integrates with qBraid's Chat API, providing
 ### Core Functionality
 
 -   [x] Secure API key management through VS Code settings
+    -   Set API key via command palette or chat interface
+    -   Remove API key with a single command
+    -   Automatic UI updates on key changes
 -   [x] Integration with qBraid Chat API
 -   [x] Model selection from available qBraid models
 -   [x] Real-time chat interface in VS Code sidebar
@@ -24,6 +27,7 @@ A Visual Studio Code extension that integrates with qBraid's Chat API, providing
 -   [x] Responsive textarea with auto-resize
 -   [x] Model pricing information display
 -   [x] Keyboard shortcuts (Enter to send, Shift+Enter for new line)
+-   [x] Easy API key management from chat interface
 
 ## 🚀 Setup Instructions
 
@@ -38,11 +42,24 @@ A Visual Studio Code extension that integrates with qBraid's Chat API, providing
     - Visit [qBraid's platform](https://account.qbraid.com)
     - Generate or copy your API key
 
-3. Configure the extension:
-    - Open VS Code
-    - Open Command Palette (Ctrl+Shift+P / Cmd+Shift+P)
-    - Run "qBraid: Set API Key"
-    - Enter your API key when prompted
+3. Set up your API key (choose one method):
+
+    - **Via Command Palette:**
+        1. Open Command Palette (Ctrl+Shift+P / Cmd+Shift+P)
+        2. Type "qBraid: Set API Key"
+        3. Enter your API key when prompted
+    - **Via Chat Interface:**
+        1. Click the qBraid Chat icon in the sidebar
+        2. Click "Set API Key" in the welcome screen
+        3. Enter your API key when prompted
+
+4. To remove or change your API key:
+    - **Remove API Key:**
+        - Use Command Palette: "qBraid: Remove API Key"
+        - Or click "Change API Key" in chat and cancel the input
+    - **Change API Key:**
+        - Use Command Palette: "qBraid: Set API Key"
+        - Or click "Change API Key" button in chat header
 
 ## 🎯 Usage
 
@@ -50,6 +67,13 @@ A Visual Studio Code extension that integrates with qBraid's Chat API, providing
 2. Select your preferred model from the dropdown
 3. Type your message and press Enter to send
 4. For code-related questions, select the relevant code before asking
+
+### API Key Management
+
+-   The API key is securely stored in VS Code's settings
+-   You can change or remove it at any time
+-   The chat interface automatically updates when the key changes
+-   A welcome screen appears when no key is set
 
 ## 🔧 Development Setup
 

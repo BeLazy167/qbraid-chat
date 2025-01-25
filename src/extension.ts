@@ -18,15 +18,62 @@ const API_BASE_URL = "https://api.qbraid.com/api";
 // Extension activation function
 export async function activate(context: vscode.ExtensionContext) {
     console.log("qBraid Chat Extension activated");
+    console.log("Registering commands with context subscriptions");
 
-    // Create chat view provider and register commands
+    // Register the setApiKey command first
+    const setApiKeyCommand = vscode.commands.registerCommand(
+        "qbraid-chat.setApiKey",
+        async () => {
+            const apiKey = await vscode.window.showInputBox({
+                prompt: "Enter your qBraid API Key",
+                password: true,
+                placeHolder: "Paste your API key here",
+                ignoreFocusOut: true, // Keep the input box open when focus is lost
+            });
+
+            if (apiKey) {
+                await vscode.workspace
+                    .getConfiguration()
+                    .update("qbraid-chat.apiKey", apiKey, true);
+                vscode.window.showInformationMessage(
+                    "API Key saved successfully"
+                );
+
+                // Refresh the webview if it exists
+                if (provider._view) {
+                    await provider.initializeWebview();
+                }
+            }
+        }
+    );
+
+    // Register the removeApiKey command
+    const removeApiKeyCommand = vscode.commands.registerCommand(
+        "qbraid-chat.removeApiKey",
+        async () => {
+            await vscode.workspace
+                .getConfiguration()
+                .update("qbraid-chat.apiKey", "", true);
+            vscode.window.showInformationMessage(
+                "API Key removed successfully"
+            );
+
+            // Refresh the webview if it exists
+            if (provider._view) {
+                await provider.initializeWebview();
+            }
+        }
+    );
+
+    // Create chat view provider
     const provider = new ChatViewProvider(context.extensionUri);
 
     context.subscriptions.push(
         // Register the webview view provider
         vscode.window.registerWebviewViewProvider("qbraid-chat-view", provider),
-        // Register API key set command
-        vscode.commands.registerCommand("qbraid-chat.setApiKey", setApiKey)
+        // Add the commands to subscriptions
+        setApiKeyCommand,
+        removeApiKeyCommand
     );
 }
 
@@ -35,7 +82,7 @@ export async function activate(context: vscode.ExtensionContext) {
  * Handles webview creation, message processing, and API communication
  */
 class ChatViewProvider implements vscode.WebviewViewProvider {
-    private _view?: vscode.WebviewView; // Reference to webview instance
+    public _view?: vscode.WebviewView; // Reference to webview instance
     private _chatHistory: ChatMessage[] = []; // Stores conversation history
 
     constructor(private readonly _extensionUri: vscode.Uri) {}
@@ -58,7 +105,7 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
     }
 
     // Initialize webview content based on API key status
-    private async initializeWebview() {
+    public async initializeWebview() {
         if (!this._view) return;
 
         const apiKey = getApiKey();
@@ -97,6 +144,29 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
                         text-align: center;
                         color: var(--vscode-foreground);
                         font-family: var(--vscode-font-family);
+                        height: 100vh;
+                        margin: 0;
+                    }
+                    .welcome-container {
+                        max-width: 400px;
+                        padding: 20px;
+                        background: var(--vscode-editor-inactiveSelectionBackground);
+                        border-radius: 6px;
+                    }
+                    h2 {
+                        margin-top: 0;
+                        color: var(--vscode-textLink-foreground);
+                    }
+                    p {
+                        margin: 16px 0;
+                        line-height: 1.4;
+                    }
+                    .steps {
+                        text-align: left;
+                        margin: 16px 0;
+                    }
+                    .steps li {
+                        margin: 8px 0;
                     }
                     button {
                         margin-top: 16px;
@@ -106,15 +176,33 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
                         border: none;
                         border-radius: 4px;
                         cursor: pointer;
+                        font-size: 14px;
                     }
                     button:hover {
                         background: var(--vscode-button-hoverBackground);
                     }
+                    .api-link {
+                        color: var(--vscode-textLink-foreground);
+                        text-decoration: none;
+                    }
+                    .api-link:hover {
+                        text-decoration: underline;
+                    }
                 </style>
             </head>
             <body>
-                <p>Please set your qBraid API key to start chatting.</p>
-                <button onclick="setApiKey()">Set API Key</button>
+                <div class="welcome-container">
+                    <h2>Welcome to qBraid Chat!</h2>
+                    <p>To get started, you'll need to set up your qBraid API key.</p>
+                    <div class="steps">
+                        <ol>
+                            <li>Visit <a class="api-link" href="https://account.qbraid.com">qBraid's platform</a></li>
+                            <li>Generate or copy your API key</li>
+                            <li>Click the button below to set it up</li>
+                        </ol>
+                    </div>
+                    <button onclick="setApiKey()">Set API Key</button>
+                </div>
                 <script>
                     const vscode = acquireVsCodeApi();
                     function setApiKey() {
@@ -227,22 +315,6 @@ ${message.text}
     }
 }
 
-// Command to set API key in VS Code configuration
-async function setApiKey() {
-    const apiKey = await vscode.window.showInputBox({
-        prompt: "Enter your qBraid API Key",
-        password: true,
-    });
-
-    if (apiKey) {
-        await vscode.workspace
-            .getConfiguration()
-            .update("qbraid-chat.apiKey", apiKey, true);
-        vscode.window.showInformationMessage("API Key saved successfully");
-        vscode.commands.executeCommand("workbench.view.extension.qbraid-chat");
-    }
-}
-
 // Fetch available models from qBraid API
 async function fetchModels(apiKey: string) {
     const response = await axios.get(`${API_BASE_URL}/chat/models`, {
@@ -282,12 +354,31 @@ function getWebviewContent(models: any[]) {
                     padding: 8px;
                     border-bottom: 1px solid var(--vscode-panel-border);
                 }
+                .header-row {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    margin-bottom: 8px;
+                }
+                .api-key-button {
+                    padding: 4px 8px;
+                    background: transparent;
+                    color: var(--vscode-button-secondaryForeground);
+                    border: 1px solid var(--vscode-button-secondaryForeground);
+                    border-radius: 2px;
+                    font-size: 11px;
+                    cursor: pointer;
+                }
+                .api-key-button:hover {
+                    background: var(--vscode-button-secondaryBackground);
+                }
                 .model-info {
                     font-size: 12px;
                     color: var(--vscode-descriptionForeground);
                     margin-top: 4px;
                 }
                 select {
+                    flex: 1;
                     width: 100%;
                     padding: 4px;
                     background: var(--vscode-dropdown-background);
@@ -434,14 +525,17 @@ function getWebviewContent(models: any[]) {
         </head>
         <body>
             <div class="header">
-                <select id="model-select">
-                    ${models
-                        .map(
-                            (m) =>
-                                `<option value="${m.model}">${m.model}</option>`
-                        )
-                        .join("")}
-                </select>
+                <div class="header-row">
+                    <select id="model-select">
+                        ${models
+                            .map(
+                                (m) =>
+                                    `<option value="${m.model}">${m.model}</option>`
+                            )
+                            .join("")}
+                    </select>
+                    <button class="api-key-button" onclick="setApiKey()">Change API Key</button>
+                </div>
                 <div id="model-pricing" class="model-info"></div>
             </div>
             <div class="chat-container" id="chat-container"></div>
@@ -573,6 +667,10 @@ function getWebviewContent(models: any[]) {
                             break;
                     }
                 });
+
+                function setApiKey() {
+                    vscode.postMessage({ type: 'setApiKey' });
+                }
 
                 messageInput.focus();
             </script>
