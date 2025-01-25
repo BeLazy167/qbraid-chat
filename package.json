@@ -1,0 +1,78 @@
+{
+    "name": "qbraid-chat",
+    "displayName": "qBraid Chat",
+    "description": "VS Code extension for qBraid Chat API integration",
+    "version": "0.1.0",
+    "publisher": "dhruvkhara",
+    "engines": {
+        "vscode": "^1.85.0"
+    },
+    "categories": [
+        "Other"
+    ],
+    "activationEvents": [
+        "onView:qbraid-chat-view"
+    ],
+    "main": "./out/extension.js",
+    "contributes": {
+        "viewsContainers": {
+            "activitybar": [
+                {
+                    "id": "qbraid-chat",
+                    "title": "qBraid Chat",
+                    "icon": "media/icon.svg"
+                }
+            ]
+        },
+        "views": {
+            "qbraid-chat": [
+                {
+                    "type": "webview",
+                    "id": "qbraid-chat-view",
+                    "name": "Chat",
+                    "icon": "media/icon.svg"
+                }
+            ]
+        },
+        "commands": [
+            {
+                "command": "qbraid-chat.setApiKey",
+                "title": "qBraid: Set API Key"
+            }
+        ],
+        "configuration": {
+            "title": "qBraid Chat",
+            "properties": {
+                "qbraid-chat.apiKey": {
+                    "type": "string",
+                    "default": "",
+                    "description": "qBraid API Key"
+                }
+            }
+        }
+    },
+    "scripts": {
+        "vscode:prepublish": "npm run compile",
+        "compile": "tsc -p ./",
+        "watch": "tsc -watch -p ./",
+        "pretest": "npm run compile && npm run lint",
+        "lint": "eslint src --ext ts",
+        "test": "node ./out/test/runTest.js",
+        "vsce:package": "vsce package"
+    },
+    "devDependencies": {
+        "@types/mocha": "^10.0.10",
+        "@types/node": "18.x",
+        "@types/vscode": "^1.85.0",
+        "@typescript-eslint/eslint-plugin": "^6.15.0",
+        "@typescript-eslint/parser": "^6.15.0",
+        "@vscode/test-electron": "^2.3.8",
+        "@vscode/vsce": "^2.22.0",
+        "esbuild": "^0.19.0",
+        "eslint": "^8.56.0",
+        "typescript": "^5.3.3"
+    },
+    "dependencies": {
+        "axios": "^1.6.0"
+    }
+}
