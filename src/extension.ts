@@ -24,12 +24,19 @@ export async function activate(context: vscode.ExtensionContext) {
     const setApiKeyCommand = vscode.commands.registerCommand(
         "qbraid-chat.setApiKey",
         async () => {
+            console.log("setApiKey command executed");
+
             const apiKey = await vscode.window.showInputBox({
                 prompt: "Enter your qBraid API Key",
                 password: true,
                 placeHolder: "Paste your API key here",
                 ignoreFocusOut: true, // Keep the input box open when focus is lost
             });
+
+            console.log(
+                "API key input result:",
+                apiKey ? "Key provided" : "No key provided"
+            );
 
             if (apiKey) {
                 await vscode.workspace
@@ -38,9 +45,11 @@ export async function activate(context: vscode.ExtensionContext) {
                 vscode.window.showInformationMessage(
                     "API Key saved successfully"
                 );
+                console.log("API key saved successfully");
 
                 // Refresh the webview if it exists
                 if (provider._view) {
+                    console.log("Refreshing webview with new API key");
                     await provider.initializeWebview();
                 }
             }
@@ -106,12 +115,16 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
 
     // Initialize webview content based on API key status
     public async initializeWebview() {
-        if (!this._view) return;
+        if (!this._view) {
+            return;
+        }
 
         const apiKey = getApiKey();
         if (!apiKey) {
             // Show API key setup UI if not configured
             this._view.webview.html = this.getNoApiKeyContent();
+            // Set up basic message handlers even without an API key
+            this.setupBasicMessageHandlers();
             return;
         }
 
@@ -120,11 +133,34 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
             const models = await fetchModels(apiKey);
             this._view.webview.html = getWebviewContent(models);
             this.setupMessageHandlers(apiKey);
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error initializing chat:", error);
-            vscode.window.showErrorMessage(
-                "Failed to initialize chat: " + error
-            );
+
+            // Check for authentication error (401)
+            if (error.response && error.response.status === 401) {
+                const updateKey = "Update API Key";
+                vscode.window
+                    .showErrorMessage(
+                        "Authentication failed: Your qBraid API key appears to be invalid or expired.",
+                        updateKey
+                    )
+                    .then((selection) => {
+                        if (selection === updateKey) {
+                            vscode.commands.executeCommand(
+                                "qbraid-chat.setApiKey"
+                            );
+                        }
+                    });
+
+                // Show API key setup UI
+                this._view.webview.html = this.getNoApiKeyContent();
+                // Set up basic message handlers for the API key setup UI
+                this.setupBasicMessageHandlers();
+            } else {
+                vscode.window.showErrorMessage(
+                    `Failed to initialize chat: ${error.message || error}`
+                );
+            }
         }
     }
 
@@ -313,19 +349,60 @@ ${message.text}
             });
         }
     }
+
+    // Set up basic message handlers for the API key setup UI
+    private setupBasicMessageHandlers() {
+        if (!this._view) return;
+
+        console.log("Setting up basic message handlers for API key setup UI");
+
+        this._view.webview.onDidReceiveMessage(async (message) => {
+            console.log("Received message from webview:", message);
+
+            switch (message.type) {
+                case "setApiKey":
+                    console.log("Executing setApiKey command");
+                    vscode.commands.executeCommand("qbraid-chat.setApiKey");
+                    break;
+            }
+        });
+    }
 }
 
 // Fetch available models from qBraid API
 async function fetchModels(apiKey: string) {
-    const response = await axios.get(`${API_BASE_URL}/chat/models`, {
-        headers: { "api-key": apiKey },
-    });
-    return response.data;
+    if (!apiKey || apiKey.trim() === "") {
+        throw new Error("API key is empty or invalid");
+    }
+
+    try {
+        const response = await axios.get(`${API_BASE_URL}/chat/models`, {
+            headers: { "api-key": apiKey },
+        });
+        return response.data;
+    } catch (error: any) {
+        // Add more context to the error
+        if (error.response && error.response.status === 401) {
+            throw new Error(
+                "Authentication failed: Invalid or expired API key"
+            );
+        }
+        throw error;
+    }
 }
 
 // Retrieve stored API key from VS Code configuration
 function getApiKey(): string | undefined {
-    return vscode.workspace.getConfiguration().get("qbraid-chat.apiKey");
+    const apiKey = vscode.workspace
+        .getConfiguration()
+        .get<string>("qbraid-chat.apiKey");
+
+    // Basic validation - ensure it's not empty or just whitespace
+    if (!apiKey || apiKey.trim() === "") {
+        return undefined;
+    }
+
+    return apiKey.trim();
 }
 
 // Generate complete webview HTML content
